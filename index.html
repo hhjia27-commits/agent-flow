@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent 流程图</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+    background: #f7f8fa;
+    color: #333;
+    padding: 32px 24px;
+  }
+
+  /* ===== Legend ===== */
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #666;
+  }
+  .legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 2px solid;
+  }
+  .legend-dot.trigger { background: #fff4e6; border-color: #ff9500; }
+  .legend-dot.agent { background: #e8f8ee; border-color: #34c759; }
+  .legend-dot.decision { background: #fff9e6; border-color: #ffcc00; transform: rotate(45deg); width: 11px; height: 11px; }
+  .legend-dot.output { background: #e6f2ff; border-color: #007aff; }
+  .legend-dot.storage { background: #f2f2f7; border-color: #aeaeb2; }
+  .legend-dot.notify { background: #f3e8ff; border-color: #af52de; }
+  .legend-dot.knowledge { background: #fff0f0; border-color: #ff3b30; }
+
+  /* ===== Flow Container ===== */
+  .flow-wrap {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 48px;
+    overflow: hidden;
+  }
+  .flow-header {
+    padding: 18px 28px;
+    border-bottom: 1px solid #f0f0f2;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .flow-header h2 { font-size: 17px; font-weight: 700; }
+  .flow-header .badge {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+  .flow-header .goal {
+    margin-left: auto;
+    font-size: 12px;
+    color: #aeaeb2;
+  }
+
+  /* ===== Swim Lane ===== */
+  .lane {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid #f0f0f2;
+    min-height: 96px;
+  }
+  .lane:last-child { border-bottom: none; }
+  .lane-label {
+    width: 110px;
+    min-width: 110px;
+    padding: 14px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-right: 2px solid #f0f0f2;
+    background: #fafbfc;
+  }
+  .lane-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+  }
+  .lane-icon.orange { background: #fff4e6; color: #ff9500; }
+  .lane-icon.green { background: #e8f8ee; color: #34c759; }
+  .lane-icon.blue { background: #e6f2ff; color: #007aff; }
+  .lane-icon.purple { background: #f3e8ff; color: #af52de; }
+  .lane-icon.red { background: #fff0f0; color: #ff3b30; }
+  .lane-icon.gray { background: #f2f2f7; color: #8e8e93; }
+  .lane-name { font-size: 12px; font-weight: 700; color: #333; text-align: center; line-height: 1.3; }
+  .lane-sub { font-size: 10px; color: #aeaeb2; }
+  .lane-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    gap: 0;
+    overflow-x: auto;
+  }
+
+  /* ===== Node ===== */
+  .nd {
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    border: 2px solid;
+    flex-shrink: 0;
+    min-width: 80px;
+    position: relative;
+  }
+  .nd .nd-sub { font-size: 10px; font-weight: 400; color: #999; margin-top: 2px; }
+
+  .nd.trigger { background: #fff4e6; border-color: #ff9500; color: #c77700; }
+  .nd.agent { background: #e8f8ee; border-color: #34c759; color: #248a3d; }
+  .nd.output { background: #e6f2ff; border-color: #007aff; color: #0055d4; }
+  .nd.storage { background: #f2f2f7; border-color: #aeaeb2; color: #636366; }
+  .nd.notify { background: #f3e8ff; border-color: #af52de; color: #8944ab; }
+  .nd.knowledge { background: #fff0f0; border-color: #ff3b30; color: #d63028; }
+  .nd.highlight { border-width: 3px; }
+
+  /* Decision diamond */
+  .diamond-wrap {
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .diamond {
+    width: 38px;
+    height: 38px;
+    background: #fff9e6;
+    border: 2px solid #ffcc00;
+    border-radius: 4px;
+    transform: rotate(45deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .diamond span {
+    transform: rotate(-45deg);
+    font-size: 10px;
+    font-weight: 600;
+    color: #8a7600;
+  }
+
+  /* ===== Arrow ===== */
+  .arr {
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .arr::before {
+    content: '';
+    width: 20px;
+    height: 2px;
+    background: #d1d1d6;
+  }
+  .arr::after {
+    content: '';
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 6px solid #d1d1d6;
+  }
+  .arr .arr-label {
+    position: absolute;
+    top: -13px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    color: #c7c7cc;
+    white-space: nowrap;
+  }
+  .arr.red::before { background: #e74c3c; }
+  .arr.red::after { border-left-color: #e74c3c; }
+  .arr.green::before { background: #34c759; }
+  .arr.green::after { border-left-color: #34c759; }
+
+  /* ===== Mini node groups ===== */
+  .nd-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+    align-items: center;
+  }
+  .nd-group .g-label { font-size: 9px; color: #aeaeb2; font-weight: 600; }
+  .nd-row { display: flex; gap: 5px; }
+  .nd-mini {
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    border: 1.5px solid;
+    text-align: center;
+    line-height: 1.3;
+  }
+  .nd-mini.agent { background: #e8f8ee; border-color: #34c759; color: #248a3d; }
+  .nd-mini.storage { background: #f2f2f7; border-color: #aeaeb2; color: #636366; }
+  .nd-mini.pool-a { background: #fff0f0; border-color: #ff3b30; color: #d63028; }
+  .nd-mini.pool-b { background: #fff0f0; border-color: #ff3b30; color: #d63028; }
+  .nd-mini.pool-c { background: #f3e8ff; border-color: #af52de; color: #8944ab; }
+  .nd-mini.muted { background: #f9f9f9; border-color: #d1d1d6; color: #aeaeb2; }
+
+  /* ===== Example tip ===== */
+  .tip {
+    font-size: 10px;
+    color: #c7c7cc;
+    font-weight: 400;
+    max-width: 130px;
+    line-height: 1.3;
+    margin-top: 3px;
+    text-align: center;
+  }
+
+  /* ===== Footer note ===== */
+  .flow-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    background: #fafbfc;
+    border-top: 1px solid #f0f0f2;
+    font-size: 11px;
+    color: #aeaeb2;
+  }
+  .flow-footer .fn-dot {
+    width: 20px;
+    height: 20px;
+    background: #f3e8ff;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  /* ===== JD callout ===== */
+  .jd-callout {
+    background: #fffbe6;
+    border: 1.5px solid #ffe58f;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 11px;
+    color: #ad8b00;
+    flex-shrink: 0;
+    max-width: 180px;
+    line-height: 1.4;
+  }
+  .jd-callout strong { color: #874d00; }
+
+  /* ===== Tooltip popover ===== */
+  .has-tooltip {
+    position: relative;
+    cursor: pointer;
+  }
+  .has-tooltip .tooltip {
+    display: none;
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 280px;
+    background: #fff;
+    border: 1.5px solid #af52de;
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    z-index: 100;
+    text-align: left;
+    font-weight: 400;
+    font-size: 12px;
+    color: #424245;
+    line-height: 1.6;
+  }
+  .has-tooltip .tooltip::before {
+    content: '';
+    position: absolute;
+    top: -7px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-top: 1.5px solid #af52de;
+    border-left: 1.5px solid #af52de;
+  }
+  .has-tooltip:hover .tooltip,
+  .has-tooltip.active .tooltip {
+    display: block;
+  }
+  /* Right-side tooltip */
+  .has-tooltip .tooltip.tooltip-right {
+    top: 50%;
+    left: calc(100% + 14px);
+    transform: translateX(0) translateY(-50%);
+    border-color: #ff9500;
+  }
+  .has-tooltip .tooltip.tooltip-right::before {
+    top: 50%;
+    left: -7px;
+    transform: translateY(-50%) rotate(-45deg);
+    border-top: 1.5px solid #ff9500;
+    border-left: 1.5px solid #ff9500;
+  }
+  .tooltip .tt-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: #8944ab;
+    margin-bottom: 6px;
+  }
+  .tooltip .tt-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+    align-items: flex-start;
+  }
+  .tooltip .tt-dot {
+    width: 6px;
+    height: 6px;
+    background: #af52de;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+  .tooltip .tt-hint {
+    font-size: 10px;
+    color: #aeaeb2;
+    margin-top: 8px;
+    text-align: center;
+  }
+
+  /* ===== JD Button ===== */
+  .jd-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(135deg, #ff9500, #ff6b00);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 10px;
+    margin-top: 6px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 6px rgba(255,149,0,0.3);
+  }
+  .jd-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 3px 10px rgba(255,149,0,0.4);
+  }
+  .jd-btn .jd-arrow {
+    font-size: 8px;
+    transition: transform 0.2s;
+  }
+  .has-tooltip.active .jd-btn .jd-arrow {
+    transform: rotate(90deg);
+  }
+
+  /* Section title */
+  .sec-title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: #1d1d1f;
+    margin-bottom: 6px;
+  }
+  .sec-sub {
+    text-align: center;
+    font-size: 13px;
+    color: #aeaeb2;
+    margin-bottom: 20px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Legend -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot trigger"></div>用户触发</div>
+  <div class="legend-item"><div class="legend-dot agent"></div>Agent 处理</div>
+  <div class="legend-item"><div class="legend-dot decision"></div>判断决策</div>
+  <div class="legend-item"><div class="legend-dot output"></div>产出完成</div>
+  <div class="legend-item"><div class="legend-dot storage"></div>数据存储</div>
+  <div class="legend-item"><div class="legend-dot notify"></div>通知推送</div>
+  <div class="legend-item"><div class="legend-dot knowledge"></div>知识积累</div>
+</div>
+
+<!-- ==================== 流程图1：热点 Agent ==================== -->
+<h1 class="sec-title">热点 Agent</h1>
+<p class="sec-sub">目标：保证每天生产 100 条达标热点素材 · 定时触发 · 每 1 小时</p>
+
+<div class="flow-wrap">
+  <div class="flow-header">
+    <h2>热点 Agent 流程</h2>
+    <span class="badge">Agent Flow</span>
+    <span class="goal">定时 1 小时拉取</span>
+  </div>
+
+  <!-- Row 1: 素材运营 -->
+  <div class="lane">
+    <div class="lane-label">
+      <div class="lane-icon orange">&#9737;</div>
+      <div class="lane-name">素材运营</div>
+    </div>
+    <div class="lane-body">
+      <div class="nd trigger has-tooltip" onclick="this.classList.toggle('active')">
+        社区热点接收员
+        <div class="nd-sub">每 1h 拉取热点<br>query + 笔记 ID</div>
+        <div class="jd-btn">查看 JD <span class="jd-arrow">&#9654;</span></div>
+        <div class="tooltip tooltip-right">
+          <div class="tt-title" style="color:#c77700">JD：社区热点接收员</div>
+          <div class="tt-row"><div class="tt-dot" style="background:#ff9500"></div><div>保证每天产出 <strong>100 条</strong>达标素材</div></div>
+          <div class="tt-row"><div class="tt-dot" style="background:#ff9500"></div><div>每 1h 拉取热点 query + 笔记 ID，管理待生产队列</div></div>
+        </div>
+      </div>
+      <div class="arr"><span class="arr-label">热点数据</span></div>
+      <div class="nd storage highlight">
+        待生产队列
+        <div class="nd-sub">按热度排序<br>去重 · 过滤已生产</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Agent -->
+  <div class="lane">
+    <div class="lane-label">
+      <div class="lane-icon green">&#9881;</div>
+      <div class="lane-name">Agent</div>
+    </div>
+    <div class="lane-body">
+      <div class="nd-group">
+        <div class="nd agent">
+          素材挖掘 Agent
+          <div class="nd-sub">提炼卖点<br>"三亚攻略"→<br>"还有谁不知道这个海岛？"</div>
+        </div>
+      </div>
+      <div class="arr"></div>
+      <div class="nd-group">
+        <div class="nd agent">
+          素材装修 Agent
+          <div class="nd-sub">标题 / 封面 / 正文<br>适配站外投放格式</div>
+        </div>
+      </div>
+      <div class="arr"></div>
+      <div class="nd agent">
+        一审 Agent
+        <div class="nd-sub">卖点准确 · 调性<br>敏感词</div>
+      </div>
+      <div class="arr"></div>
+      <div class="nd agent">
+        二审 Agent
+        <div class="nd-sub">素材完整性<br>格式 · 可读性</div>
+      </div>
+      <div class="arr"></div>
+      <div class="nd agent">
+        Check Agent
+        <div class="nd-sub">合规兜底 · 去重</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 3: 投放运营 -->
+  <div class="lane">
+    <div class="lane-label">
+      <div class="lane-icon purple">&#9650;</div>
+      <div class="lane-name">投放运营</div>
+    </div>
+    <div class="lane-body">
+      <div class="nd output highlight" style="background:linear-gradient(135deg,#e6f2ff,#e8f8ee);border-color:#34c759;">
+        投放池
+        <div class="nd-sub">审核通过 · 素材就绪</div>
+      </div>
+      <div class="arr"></div>
+      <div class="nd storage">
+        投手 Agent
+      </div>
+      <div class="arr"></div>
+      <div class="nd knowledge">
+        效果回收
+        <div class="nd-sub">CTR / 转化反哺</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-footer">
+    <div class="fn-dot">&#8617;</div>
+    <span><strong>打回机制：</strong>一审打回 → 返回素材挖掘 Agent ｜ 二审打回 → 返回素材装修 Agent</span>
+  </div>
+</div>
+
+<!-- ==================== 流程图2：内容 Agent ==================== -->
+<h1 class="sec-title">内容 Agent</h1>
+<p class="sec-sub">从站内优质内容中，按 20 个人群 x 品类挖掘 Top 素材并加工</p>
+
+<div class="flow-wrap">
+  <div class="flow-header">
+    <h2>内容 Agent 流程</h2>
+    <span class="badge">Agent Flow</span>
+    <span class="goal">T-1 ~ T-40 天 · 挖存量好内容</span>
+  </div>
+
+  <!-- Row 1: 素材运营 -->
+  <div class="lane">
+    <div class="lane-label">
+      <div class="lane-icon orange">&#9733;</div>
+      <div class="lane-name">素材运营</div>
+    </div>
+    <div class="lane-body">
+      <div class="nd-group">
+        <div class="g-label">三个内容池（内容来源）</div>
+        <div class="nd-row">
+          <div class="nd-mini pool-a">先验池<br><span style="font-weight:400;font-size:9px">运营先验</span></div>
+          <div class="nd-mini pool-b">运营池<br><span style="font-weight:400;font-size:9px">运营筛选</span></div>
+          <div class="nd-mini pool-c">后验池<br><span style="font-weight:400;font-size:9px">长期留存</span></div>
+        </div>
+        <div class="tip" style="max-width:200px;margin-top:4px;">后验池：分析留存用户为何留存，找能长期留住用户的内容，约两周看一次</div>
+      </div>
+      <div class="arr"><span class="arr-label">汇总</span></div>
+      <div class="nd trigger">
+        好内容挑选官
+        <div class="nd-sub">汇总三池内容<br>筛选优质内容</div>
+      </div>
+      <div class="arr"><span class="arr-label">按人群分发</span></div>
+      <div class="nd-group">
+        <div class="g-label">20 个人群子 Agent · 每人群独立</div>
+        <div class="nd-row">
+          <div class="nd-mini agent">人群 Agent 1<br><span style="font-weight:400;font-size:9px">男·18-</span></div>
+          <div class="nd-mini agent">人群 Agent 2<br><span style="font-weight:400;font-size:9px">男·19-29</span></div>
+          <div class="nd-mini agent">人群 Agent 3<br><span style="font-weight:400;font-size:9px">女·18-</span></div>
+          <div class="nd-mini agent">人群 Agent 4<br><span style="font-weight:400;font-size:9px">女·19-29</span></div>
+          <div class="nd-mini muted">... x20</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Agent -->
+  <div class="lane">
+    <div class="lane-label">
+      <div class="lane-icon green">&#9881;</div>
+      <div class="lane-name">Agent</div>
+    </div>
+    <div class="lane-body">
+      <div class="nd agent">
+        人群 Agent x20
+        <div class="nd-sub">按品类分类 · 热度排序<br>各品类取 Top 5</div>
+      </div>
+      <div style="font-size:11px;color:#999;flex-shrink:0;padding:0 8px;white-space:nowrap;">各品类 Top 5 →</div>
+      <div class="nd-group">
+        <div class="nd agent">
+          素材挖掘 Agent
+          <div class="nd-sub">提炼卖点<br>"三亚攻略"→<br>"还有谁不知道这个海岛？"</div>
+        </div>
+      </div>
+      <div class="arr"></div>
+      <div class="nd-group">
+        <div class="nd agent">
+          素材装修 Agent
+          <div class="nd-sub">标题 / 封面 / 正文<br>适配站外投放格式</div>
+        </div>
+      </div>
+      <div class="arr"></div>
+      <div class="nd agent">
+        一审 Agent
+        <div class="nd-sub">卖点准确 · 调性<br>敏感词</div>
+      </div>
+      <div class="arr"></div>
+      <div class="nd agent">
+        二审 Agent
+        <div class="nd-sub">素材完整性<br>格式 · 可读性</div>
+      </div>
+      <div class="arr"></div>
+      <div class="nd agent">
+        Check Agent
+        <div class="nd-sub">合规兜底 · 去重</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 3: 投放运营 -->
+  <div class="lane">
+    <div class="lane-label">
+      <div class="lane-icon purple">&#9650;</div>
+      <div class="lane-name">投放运营</div>
+    </div>
+    <div class="lane-body">
+      <div class="nd output highlight" style="background:linear-gradient(135deg,#e6f2ff,#e8f8ee);border-color:#34c759;">
+        投放池
+        <div class="nd-sub">审核通过 · 素材就绪</div>
+      </div>
+      <div class="arr"></div>
+      <div class="nd storage">
+        投手 Agent
+      </div>
+      <div class="arr"></div>
+      <div class="nd knowledge">
+        效果回收
+        <div class="nd-sub">CTR / 转化反哺</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-footer">
+    <div class="fn-dot">&#8617;</div>
+    <span><strong>打回机制：</strong>一审打回 → 返回素材挖掘 Agent ｜ 二审打回 → 返回素材装修 Agent</span>
+  </div>
+</div>
+
+</body>
+</html>
